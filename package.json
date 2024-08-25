@@ -83,9 +83,6 @@
     "@anthropic-ai/sdk": "^0.26.1",
     "@vscode/dts": "^0.4.1"
   },
-  "enabledApiProposals": [
-    "terminalExecuteCommandEvent"
-  ],
   "files": [
     "out",
     "dist",
