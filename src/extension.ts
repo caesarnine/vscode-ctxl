@@ -297,7 +297,7 @@ class AnthropicChat {
 
         const editorContentsXml = await this.editorContentProvider.getAllEditorsContentAsXml();
         const contextMessage = `Current open files:\n${editorContentsXml}`;
-        const systemPrompt = contextMessage + '\nYou are an AI assistant with access to the following tools: ' + JSON.stringify(toolSchemas, null, 2) + '. You can also view the current open files as well as the active editor. Always use `open_file` to open a file before writing or editing it. Always think step by step in a <thinking>...</thinking> block before doing anything. When creating or editing a file always use `cat` to write the complete new content of the file.';
+        const systemPrompt = contextMessage + '\nYou are an AI assistant with access to the following tools: ' + JSON.stringify(toolSchemas, null, 2) + '. You can also view the current open files as well as the active editor. Always use `open_file` to open a file before writing or editing it. When creating or editing a file always use `cat` to write the complete new content of the file. The sequence should always be open_file -> cat when writing or editing a file. Always think step by step in a <thinking>...</thinking> block before doing anything.';
 
         const stream = await this.client.streamResponse(this.messages, systemPrompt, toolSchemas);
 
