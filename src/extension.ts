@@ -297,7 +297,7 @@ class AnthropicChat {
 
         const editorContentsXml = await this.editorContentProvider.getAllEditorsContentAsXml();
         const contextMessage = `Current open files:\n${editorContentsXml}`;
-        const systemPrompt = contextMessage + '\nYou are an AI assistant with access to the following tools: ' + JSON.stringify(toolSchemas, null, 2) + '. You can also view the current open files as well as the active editor. Always use `open_file` to open a file before writing or editing it. Always think step by step in a <thinking>...</thinking> block before doing anything.';
+        const systemPrompt = contextMessage + '\nYou are an AI assistant with access to the following tools: ' + JSON.stringify(toolSchemas, null, 2) + '. You can also view the current open files as well as the active editor. Always use `open_file` to open a file before writing or editing it. Always think step by step in a <thinking>...</thinking> block before doing anything. When creating or editing a file always use `cat` to write the complete new content of the file.';
 
         const stream = await this.client.streamResponse(this.messages, systemPrompt, toolSchemas);
 
@@ -461,8 +461,13 @@ class AnthropicChat {
                 document = await vscode.workspace.openTextDocument(uri);
             }
 
-            await vscode.window.showTextDocument(document);
-            return `File ${filePath} opened successfully.`;
+            // Open the document as a new active tab in the existing tab group
+            await vscode.window.showTextDocument(document, {
+                preview: false,
+                preserveFocus: false,
+                viewColumn: vscode.ViewColumn.Active
+            });
+            return `File ${filePath} opened successfully as a new active tab.`;
         } catch (error) {
             console.error('Error opening or creating file:', error);
             if (error instanceof Error) {
