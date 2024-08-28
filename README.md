@@ -23,7 +23,6 @@ This is very much a proof of concept, expect bugs and missing features.
 
 ## Requirements
 
-- Visual Studio Code version 1.92.0 or higher
 - Visual Studio Code - Insiders
     - As of 08/2024 the shell integration we're using is only available in the Insiders build. 
     - The integration available in the current stable release doesn't allow us to see the output/results of the shell command.
@@ -56,7 +55,7 @@ When using AWS Bedrock, ensure your AWS credentials are properly configured in y
 - `vscode-ctxl.setAnthropicApiKey`: Set or update your Anthropic API key (for direct access)
 - `vscode-ctxl.setClientType`: Set the Anthropic client type (direct or bedrock)
 
-## Development
+## Development/Dev Build
 
 To set up the development environment:
 
@@ -65,7 +64,7 @@ To set up the development environment:
 3. Run `npm install` to install dependencies
 4. Run `npm run compile` to compile the TypeScript code
 5. Open the project in Visual Studio Code Insiders
-6. Press F5 to start debugging
+6. Press F5 to start debugging, this will open up another VSCode Insiders Window with the extension loaded
 
 ## Contributing
 
