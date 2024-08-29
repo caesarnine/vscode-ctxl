@@ -10,6 +10,10 @@ It uses Anthropic's Claude model, and supports both direct Anthropic API access 
 
 This is very much a proof of concept, expect bugs and missing features.
 
+Demo:
+
+[![Contextual Demo](https://github.com/user-attachments/assets/999b6dfd-66dc-4b94-b88b-dd9a8880d271)](https://youtu.be/1DnuyJOb8bc?si=B25-ECoP03iw6EH_ "Contextual Demo")
+
 ## Features
 
 - **Contextual AI Chat**: Interact with an AI assistant that has access to your current workspace context, including open files and editor contents.
