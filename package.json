@@ -79,8 +79,10 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
+    "@types/picomatch": "^3.0.1",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.11.0",
     "@vscode/test-cli": "^0.0.9",
@@ -92,7 +94,10 @@
     "@anthropic-ai/bedrock-sdk": "^0.10.2",
     "@anthropic-ai/sdk": "^0.26.1",
     "@vscode/dts": "^0.4.1",
-    "ignore": "^5.3.2"
+    "ignore": "^5.3.2",
+    "pathspec": "^0.9.2",
+    "picomatch": "^4.0.2",
+    "xmlbuilder": "^15.1.1"
   },
   "files": [
     "out",

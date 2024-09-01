@@ -1,14 +1,10 @@
 import * as vscode from 'vscode';
 import Anthropic from '@anthropic-ai/sdk';
 import { MessageParam, Tool, ToolUseBlock } from '@anthropic-ai/sdk/resources/messages';
-import { exec } from 'child_process';
-import util from 'util';
-const execPromise = util.promisify(exec);
 import * as path from 'path';
-import * as os from 'os';
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import ignore from 'ignore';
+import { generateXML, detectProjectTypes, parseFilterPatterns, combinePresets } from './ctxl';
 
 // Define an interface for the chat client
 interface ChatClient {
@@ -240,6 +236,43 @@ class EditorContentProvider {
     }
 }
 
+async function getContext(include_task: boolean = true): Promise<string> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+        throw new Error('No workspace folder found');
+    }
+
+    // Use the first workspace folder if there are multiple
+    const folderPath = workspaceFolders[0].uri.fsPath;
+    const gitignorePath = path.join(folderPath, '.gitignore');
+
+    // Detect project types
+    const detectedTypes = detectProjectTypes(folderPath);
+
+    // Get user-defined filter patterns
+    const config = vscode.workspace.getConfiguration('aiProgrammingAssistant');
+    const filterString = config.get<string>('contextFilter', '');
+    const filterPatterns = parseFilterPatterns(filterString);
+
+    // Combine presets based on detected project types
+    const combinedPatterns = combinePresets(Array.from(detectedTypes), filterPatterns);
+
+    
+    const task = 'Describe this project in detail. Pay special attention to the structure of the code, the design of the project, any frameworks/UI frameworks used, and the overall structure/workflow. If artifacts are available, then display workflow and sequence diagrams to help describe the project.'
+
+    // Generate XML context
+    const xmlContext = generateXML(
+        folderPath,
+        combinedPatterns.include,
+        combinedPatterns.exclude,
+        gitignorePath,
+        include_task ? task : '',
+        true // includeDotfiles, you can make this configurable if needed
+    );
+
+    return xmlContext;
+}
+
 class AnthropicChat {
     private client: ChatClient | undefined;
     private webview: vscode.Webview | undefined;
@@ -295,9 +328,10 @@ class AnthropicChat {
     private async streamResponse() {
         if (!this.client || !this.webview) return;
 
-        const editorContentsXml = await this.editorContentProvider.getAllEditorsContentAsXml();
-        const contextMessage = `Current open files:\n${editorContentsXml}`;
-        const systemPrompt = contextMessage + '\nYou are an AI assistant with access to the following tools: ' + JSON.stringify(toolSchemas, null, 2) + '. You can also view the current open files as well as the active editor. Always use `open_file` to open a file before writing or editing it. When creating or editing a file always use `cat` to write the complete new content of the file. The sequence should always be open_file -> cat when writing or editing a file. Always think step by step in a <thinking>...</thinking> block before doing anything.';
+        const contextXml = await getContext(true);
+        console.log('Context XML:', contextXml);
+        
+        const systemPrompt = contextXml + '\nYou are an AI assistant with access to the following tools: ' + JSON.stringify(toolSchemas, null, 2) + '. You can also view the current workspace context. Always use `open_file` to open a file before writing or editing it. When creating or editing a file always use `cat` to write the complete new content of the file. The sequence should always be open_file -> cat when writing or editing a file. Always think step by step in a <thinking>...</thinking> block before doing anything.';
 
         const stream = await this.client.streamResponse(this.messages, systemPrompt, toolSchemas);
 
