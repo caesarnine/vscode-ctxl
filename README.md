@@ -16,7 +16,7 @@ Demo:
 
 ## Features
 
-- **Contextual AI Chat**: Interact with an AI assistant that has access to your current workspace context, including open files and editor contents.
+- **Contextual AI Chat**: The AI assistant maintains a up to date, thorough understanding of your workspace context at all times.
 - **Intelligent Code Assistance**: Get help with coding tasks, ask questions, and receive context-aware responses.
 - **File Management**: Open and create files directly through the AI interface.
 - **Command Execution**: Run shell commands from the chat interface and view the results.
@@ -81,12 +81,3 @@ This project is licensed under the MIT License.
 ## Privacy and Data Usage
 
 This extension sends your current workspace context, including file contents and structure, to either Anthropic's API or AWS Bedrock for processing, depending on your configuration. It respects .gitignore rules and VS Code's file exclude settings to avoid sending sensitive or unnecessary files. However, please be cautious when using this extension with sensitive projects.
-
-## Technologies Used
-
-- TypeScript
-- VS Code Extension API
-- Anthropic Claude API
-- AWS Bedrock (optional)
-- markdown-it for message rendering
-- ignore package for smart file filtering

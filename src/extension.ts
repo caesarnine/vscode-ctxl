@@ -4,7 +4,7 @@ import { MessageParam, Tool, ToolUseBlock } from '@anthropic-ai/sdk/resources/me
 import * as path from 'path';
 import * as fs from 'fs';
 import ignore from 'ignore';
-import { generateXML, detectProjectTypes, parseFilterPatterns, combinePresets } from './ctxl';
+import { detectProjectTypes, combinePresets, generateXML } from './ctxl';
 
 // Define an interface for the chat client
 interface ChatClient {
@@ -242,33 +242,28 @@ async function getContext(include_task: boolean = true): Promise<string> {
         throw new Error('No workspace folder found');
     }
 
-    // Use the first workspace folder if there are multiple
     const folderPath = workspaceFolders[0].uri.fsPath;
     const gitignorePath = path.join(folderPath, '.gitignore');
 
-    // Detect project types
     const detectedTypes = detectProjectTypes(folderPath);
+    console.log('Detected project types:', detectedTypes);
 
-    // Get user-defined filter patterns
-    const config = vscode.workspace.getConfiguration('aiProgrammingAssistant');
-    const filterString = config.get<string>('contextFilter', '');
-    const filterPatterns = parseFilterPatterns(filterString);
+    const combinedPresets = combinePresets(Array.from(detectedTypes), { include: [], exclude: [] });
+    console.log('Combined presets:', JSON.stringify(combinedPresets, null, 2));
 
-    // Combine presets based on detected project types
-    const combinedPatterns = combinePresets(Array.from(detectedTypes), filterPatterns);
+    const task = include_task ? 'Describe this project in detail. Pay special attention to the structure of the code, the design of the project, any frameworks/UI frameworks used, and the overall structure/workflow. If artifacts are available, then display workflow and sequence diagrams to help describe the project.' : '';
 
-    
-    const task = 'Describe this project in detail. Pay special attention to the structure of the code, the design of the project, any frameworks/UI frameworks used, and the overall structure/workflow. If artifacts are available, then display workflow and sequence diagrams to help describe the project.'
-
-    // Generate XML context
+    console.log('Generating XML context...');
     const xmlContext = generateXML(
         folderPath,
-        combinedPatterns.include,
-        combinedPatterns.exclude,
+        combinedPresets.include,
+        combinedPresets.exclude,
         gitignorePath,
-        include_task ? task : '',
-        true // includeDotfiles, you can make this configurable if needed
+        task,
+        false // Set to false to exclude dotfiles by default
     );
+    console.log('XML context generated.');
+    console.log('XML context preview:', xmlContext.substring(0, 500) + '...');
 
     return xmlContext;
 }
@@ -341,8 +336,6 @@ class AnthropicChat {
         let toolUses: ToolUseBlock[] = [];
 
         for await (const event of stream) {
-            console.log('Stream event:', JSON.stringify(event, null, 2));
-
             if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
                 assistantMessage += event.delta.text;
                 this.webview.postMessage({ type: 'assistantDelta', content: event.delta.text });

@@ -3,7 +3,6 @@ import * as path from 'path';
 import * as xmlbuilder from 'xmlbuilder';
 import { getPresets } from './preset_manager';
 import ignore from 'ignore';
-import picomatch from 'picomatch'; // Add this import
 
 const DEFAULT_EXCLUDE = ['.*']; // This will exclude all dotfiles and folders
 
@@ -120,32 +119,41 @@ function generateTree(
     includePatterns: string[],
     excludePatterns: string[],
     gitignorePath: string,
-    includeDotfiles: boolean
+    includeDotfiles: boolean,
+    prefix: string = ''
 ): string {
-    const gitignorePatterns = readGitignore(gitignorePath);
-    const isExcluded = picomatch([...excludePatterns, ...gitignorePatterns]);
-    const isIncluded = includePatterns.length === 0 ? () => true : picomatch(includePatterns);
-
     let treeStr = '';
-    let items = fs.readdirSync(folderPath).sort();
-    if (!includeDotfiles) {
-        items = items.filter(item => !item.startsWith('.'));
-    }
+
+    const gitignorePatterns = readGitignore(gitignorePath);
+    const ig = ignore().add([...excludePatterns, ...gitignorePatterns]);
+    const includeIg = ignore().add(includePatterns);
+
+    const items = fs.readdirSync(folderPath)
+        .filter(item => includeDotfiles || !item.startsWith('.'))
+        .filter(item => {
+            const relPath = path.relative(folderPath, path.join(folderPath, item));
+            return !ig.ignores(relPath) && (includePatterns.length === 0 || includeIg.ignores(relPath));
+        })
+        .sort((a, b) => {
+            const aPath = path.join(folderPath, a);
+            const bPath = path.join(folderPath, b);
+            const aIsDir = fs.statSync(aPath).isDirectory();
+            const bIsDir = fs.statSync(bPath).isDirectory();
+            if (aIsDir && !bIsDir) return -1;
+            if (!aIsDir && bIsDir) return 1;
+            return a.localeCompare(b);
+        });
 
     items.forEach((item, index) => {
         const itemPath = path.join(folderPath, item);
-        const relItemPath = path.relative(folderPath, itemPath);
-
-        if (isExcluded(relItemPath)) {
-            return;
-        }
-
-        const connector = index === items.length - 1 ? '└── ' : '├── ';
-        treeStr += `${connector}${item}\n`;
+        const isLast = index === items.length - 1;
+        const connector = isLast ? '└── ' : '├── ';
+        
+        treeStr += `${prefix}${connector}${item}\n`;
 
         if (fs.statSync(itemPath).isDirectory()) {
-            const extension = index === items.length - 1 ? '    ' : '│   ';
-            treeStr += generateTree(itemPath, includePatterns, excludePatterns, gitignorePath, includeDotfiles);
+            const newPrefix = prefix + (isLast ? '    ' : '│   ');
+            treeStr += generateTree(itemPath, includePatterns, excludePatterns, gitignorePath, includeDotfiles, newPrefix);
         }
     });
 
@@ -161,9 +169,11 @@ function generateXML(
     includeDotfiles: boolean
 ): string {
     const gitignorePatterns = readGitignore(gitignorePath);
-    const ig = ignore().add(gitignorePatterns);
-    const isExcluded = picomatch([...excludePatterns, ...gitignorePatterns]);
-    const isIncluded = includePatterns.length === 0 ? () => true : picomatch(includePatterns);
+    console.log('Gitignore patterns:', gitignorePatterns);
+    console.log('Include patterns:', includePatterns);
+
+    const ig = ignore().add([...excludePatterns, ...gitignorePatterns]);
+    const includeIg = ignore().add(includePatterns);
 
     const rootElement = xmlbuilder.create('root');
     const projectContext = rootElement.ele('project_context');
@@ -172,28 +182,30 @@ function generateXML(
     let errorCount = 0;
 
     const walkSync = (dir: string) => {
+        console.log(`Scanning directory: ${dir}`);
         const files = fs.readdirSync(dir);
         files.forEach((file) => {
             const filePath = path.join(dir, file);
             const stat = fs.statSync(filePath);
             const relFilePath = path.relative(folderPath, filePath);
 
-            // Skip dotfiles if not explicitly included
-            if (!includeDotfiles && file.startsWith('.')) {
+            console.log(`Checking: ${relFilePath}`);
+
+            if (!includeDotfiles && file.startsWith('.') && !stat.isDirectory()) {
+                console.log(`Skipping dotfile: ${relFilePath}`);
                 return;
             }
 
-            // Check exclusion patterns first
-            if (isExcluded(relFilePath)) {
+            if (ig.ignores(relFilePath)) {
+                console.log(`Ignored by patterns: ${relFilePath}`);
                 return;
             }
 
-            // Check inclusion patterns
             if (stat.isDirectory()) {
-                if (isIncluded(relFilePath)) {
-                    walkSync(filePath);
-                }
-            } else if (isIncluded(relFilePath)) {
+                console.log(`Entering directory: ${relFilePath}`);
+                walkSync(filePath);
+            } else if (includePatterns.length === 0 || includeIg.ignores(relFilePath)) {
+                console.log(`Including file: ${relFilePath}`);
                 try {
                     const fileContent = fs.readFileSync(filePath, 'utf-8');
                     const fileElement = createFileElement(relFilePath, fileContent);
@@ -203,19 +215,21 @@ function generateXML(
                     if (e instanceof Error) {
                         const errorElement = projectContext.ele('error', { path: relFilePath }, e.message);
                         errorCount += 1;
-                        logger.error(`Error processing file ${relFilePath}: ${e.message}`);
+                        console.error(`Error processing file ${relFilePath}: ${e.message}`);
                     } else {
                         const errorElement = projectContext.ele('error', { path: relFilePath }, 'Unknown error');
                         errorCount += 1;
-                        logger.error(`Error processing file ${relFilePath}: Unknown error`);
+                        console.error(`Error processing file ${relFilePath}: Unknown error`);
                     }
                 }
+            } else {
+                console.log(`Not included by patterns: ${relFilePath}`);
             }
         });
     };
 
     walkSync(folderPath);
-    logger.info(`Processed ${fileCount} files with ${errorCount} errors`);
+    console.log(`Processed ${fileCount} files with ${errorCount} errors`);
 
     const treeOutput = generateTree(folderPath, includePatterns, excludePatterns, gitignorePath, includeDotfiles);
     projectContext.ele('directory_structure', {}, treeOutput);
